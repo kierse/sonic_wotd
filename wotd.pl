@@ -18,17 +18,19 @@ my $blurbURL = "http://www.m2omedia.com/chdi/members/earn/bonuscodes.jsp";
 
 # basic application logging - setting this variable to 1 will log 
 # various actions to STDERR
-my $LOG = 0;
+my $LOG = 1;
 
 # main - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 die "Missing arguments! You must provide at least one username:password pair\n" .
-	 " Usage: ./$0 <username1>:<password1> [<username2>:<password2> <username3>:<password3> ... <usernameN>:<passwordN>]\n"
-	 	unless scalar @ARGV >= 1;
+    " Usage: ./$0 <username1>:<password1> [<username2>:<password2> <username3>:<password3> ... <usernameN>:<passwordN>]\n"
+	unless scalar @ARGV >= 1;
 
 # determine the current date in ISO-8601 format (used by google calendar :))
 my @Specs = localtime();
 my $date = $Specs[5]+1900 . "-" . sprintf("%02d", $Specs[4]+1) . "-" . sprintf("%02d", $Specs[3]); # yyyy-mm-dd
+
+print STDERR "$date: let the scrapping begin!\n";
 
 # create parser and set a few default options
 my $parser = XML::TreePP->new();
@@ -139,16 +141,20 @@ if ($wotd or scalar @Blurbs)
 				$browser->field('answer' => $wotd);
 				$response = $browser->submit();
 
-				# check the response for the wotd. If it appears, the wotd was successfully posted
-				if ($response->content() =~ /$wotd/gi) 
+				# check response for the word 'congratulations'.  If it appears, wotd was successfully posted
+				if ($response->content() =~ /congratulations/gi) 
 				{ 
 					print "Successfully submitted wotd: $wotd\n";
+					print STDERR "Successfully submitted wotd: $wotd\n" if $LOG;
 				}
 				else 
 				{ 
 					print STDERR "Submission of wotd ($wotd) failed! It must have been the wrong word...\n" 
 						if $LOG;
 				}
+
+				#print STDERR $response->content() . "\n"
+				#	if $LOG;
 			}
 			else
 			{
@@ -173,19 +179,24 @@ if ($wotd or scalar @Blurbs)
 	 		if ($response->content() =~ /$blurb/gi)
 			{
 				print "Successfully submitted blurb: $blurb\n";
+				print STDERR "Successfully submitted blurb: $blurb\n" if $LOG;
 			}
 			else
 			{
 				print STDERR "Submission of blurb ($blurb) failed! It may have already been submitted...\n"
 					if $LOG;
 			}
+
+			#print STDERR $response->content() . "\n"
+			#	if $LOG;
 		}
 
 		# print out current sonic points balance
-		print "Current balance for $username: $1\n" 
-			if $response->content() =~ m#<strong>([\w,]+)\ssonic\spoints</strong>#gi;
-
-		close(RESPONSE);
+		if ($response->content() =~ m#<strong>([\w,]+)\ssonic\spoints</strong>#gi)
+		{
+			print "Current balance for $username: $1\n";
+			print STDERR "Current balance for $username: $1\n" if $LOG;
+		}
 	}
 }
 
